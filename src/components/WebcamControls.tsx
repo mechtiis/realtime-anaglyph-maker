@@ -1,6 +1,5 @@
-// components/WebcamControls.tsx
 import React from 'react';
-import { WebcamDevice } from '@/types'; // Adjust path as needed
+import { WebcamDevice } from '../types'; // Adjust path as needed
 
 interface WebcamControlsProps {
   webcams: WebcamDevice[];
@@ -14,6 +13,7 @@ interface WebcamControlsProps {
   isLoadingDevices: boolean;
   startDisabled: boolean;
   onRefreshDevices: () => void;
+  permissionGranted: boolean; // New prop
 }
 
 export const WebcamControls = ({
@@ -27,7 +27,8 @@ export const WebcamControls = ({
   isStreaming,
   isLoadingDevices,
   startDisabled,
-  onRefreshDevices
+  onRefreshDevices,
+  permissionGranted
 }: WebcamControlsProps) => {
   return (
     <div className="card bg-base-100 shadow-xl p-6 w-full max-w-md">
@@ -35,7 +36,7 @@ export const WebcamControls = ({
         <h2 className="card-title text-2xl">Setup Anaglyph Viewer</h2>
         <button
           className="btn btn-ghost btn-sm"
-          onClick={onRefreshDevices}
+          onClick={() => onRefreshDevices()} // Removed promptPermissions argument, let hook decide
           disabled={isLoadingDevices || isStreaming}
         >
           {isLoadingDevices ? (
@@ -45,6 +46,12 @@ export const WebcamControls = ({
           )}
         </button>
       </div>
+      {!permissionGranted && !isLoadingDevices && webcams.length === 0 && (
+        <p className="mb-2 text-xs text-warning-content bg-warning/20 p-2 rounded-md">
+          Camera labels might be generic. Grant camera access and refresh if names are unclear.
+          If you've denied permissions, please enable them in your browser settings.
+        </p>
+      )}
       <p className="mb-4 text-sm text-base-content/80">
         Select webcams for left/right views. For best 3D, use two webcams positioned a few inches apart.
       </p>
@@ -64,7 +71,7 @@ export const WebcamControls = ({
           </option>
           {webcams.map(cam => (
             <option key={`left-${cam.deviceId}`} value={cam.deviceId}>
-              {cam.label || cam.deviceId}
+              {cam.label} {/* Now using the label which should be more accurate */}
             </option>
           ))}
         </select>
@@ -85,7 +92,7 @@ export const WebcamControls = ({
           </option>
           {webcams.map(cam => (
             <option key={`right-${cam.deviceId}`} value={cam.deviceId}>
-              {cam.label || cam.deviceId}
+              {cam.label}
             </option>
           ))}
         </select>

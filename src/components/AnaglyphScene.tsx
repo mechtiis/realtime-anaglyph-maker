@@ -10,7 +10,7 @@ interface AnaglyphPlaneProps {
 }
 
 const AnaglyphPlane = ({ videoElementL, videoElementR }: AnaglyphPlaneProps) => {
-  const { viewport, gl } = useThree(); // gl for pixel ratio
+  const { viewport } = useThree();
 
   const textureL = useMemo(() => {
     if (!videoElementL) return null;
@@ -48,7 +48,6 @@ const AnaglyphPlane = ({ videoElementL, videoElementR }: AnaglyphPlaneProps) => 
     }
   });
 
-  // Explicitly dispose textures on unmount or when video elements change
   useEffect(() => {
     return () => {
       textureL?.dispose();
@@ -61,11 +60,6 @@ const AnaglyphPlane = ({ videoElementL, videoElementR }: AnaglyphPlaneProps) => 
   return (
     <mesh>
       <planeGeometry args={[viewport.width, viewport.height]} />
-      {/* Using a unique key for shaderMaterial can help if uniforms need deep updates,
-          though for texture value changes, it's usually not necessary.
-          THREE.ShaderMaterial.key is not a standard property.
-          If re-compilation is needed, changing the `key` prop on the <shaderMaterial> itself is better.
-      */}
       <shaderMaterial args={[shaderArgs]} />
     </mesh>
   );
@@ -74,7 +68,7 @@ const AnaglyphPlane = ({ videoElementL, videoElementR }: AnaglyphPlaneProps) => 
 interface AnaglyphSceneProps {
   videoElementL: HTMLVideoElement | null;
   videoElementR: HTMLVideoElement | null;
-  canvasKey?: number; // Optional key for forcing Canvas re-render
+  canvasKey?: number;
 }
 
 export const AnaglyphScene = ({ videoElementL, videoElementR, canvasKey }: AnaglyphSceneProps) => {
@@ -89,9 +83,6 @@ export const AnaglyphScene = ({ videoElementL, videoElementR, canvasKey }: Anagl
   return (
     <div className="w-full aspect-video bg-black rounded-lg shadow-xl overflow-hidden" style={{ minHeight: '300px' }}>
       <Canvas key={canvasKey} orthographic camera={{ position: [0, 0, 5], zoom: 1, near: 0.1, far: 1000 }}>
-        {/* Lighting is not strictly necessary for an unlit shader material, but good practice if you add other objects */}
-        {/* <ambientLight intensity={0.5} /> */}
-        {/* <pointLight position={[10, 10, 10]} /> */}
         <AnaglyphPlane videoElementL={videoElementL} videoElementR={videoElementR} />
       </Canvas>
     </div>

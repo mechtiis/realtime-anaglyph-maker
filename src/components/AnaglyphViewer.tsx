@@ -1,3 +1,4 @@
+'use client';
 import React, { useState, useEffect } from 'react';
 import { useWebcamManager } from '../hooks/useWebcamManager'; // Adjust path
 import { WebcamControls } from '@/components/WebcamControls';

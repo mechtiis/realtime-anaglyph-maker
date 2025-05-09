@@ -1,3 +1,4 @@
+'use client';
 import { useState, useEffect, RefObject, Dispatch, SetStateAction, useCallback, useRef } from 'react';
 import { WebcamDevice } from '@/types';
 

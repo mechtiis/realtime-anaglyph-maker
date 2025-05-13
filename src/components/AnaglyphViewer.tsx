@@ -1,13 +1,10 @@
 'use client';
-
 import React, { useState, useEffect, CSSProperties, useRef } from 'react'; 
 import { useWebcamManager } from '../hooks/useWebcamManager';
 import { WebcamControls } from './WebcamControls';
 import { AnaglyphScene } from './AnaglyphScene';
 import { RotationAngle } from '../types';
 
-// Adjust this scale: higher value means slider has finer control over a smaller offset range
-// e.g., 5000 means slider value 100 maps to 100/5000 = 0.02 shader offset
 const PARALLAX_SLIDER_SCALE = 5000; 
 
 export const AnaglyphViewer = () => {
@@ -24,10 +21,11 @@ export const AnaglyphViewer = () => {
   const [leftRotation, setLeftRotation] = useState<RotationAngle>(0);
   const [rightRotation, setRightRotation] = useState<RotationAngle>(0);
   const [canvasKey, setCanvasKey] = useState<number>(Date.now());
-  const [horizontalOffsetSlider, setHorizontalOffsetSlider] = useState<number>(0); // Slider value: -100 to 100
+  const [horizontalOffsetSlider, setHorizontalOffsetSlider] = useState<number>(0); 
 
   const previewVideoLRef = useRef<HTMLVideoElement>(null);
   const previewVideoRRef = useRef<HTMLVideoElement>(null);
+  const anaglyphContainerRef = useRef<HTMLDivElement>(null); // Ref for the anaglyph container for fullscreen
 
   const handleStartStreamsForPreview = async () => {
     const success = await startUserMedia();
@@ -48,6 +46,21 @@ export const AnaglyphViewer = () => {
   const handleStopStreams = () => {
     stopUserMedia();
     setViewMode('preview');
+  };
+
+  const toggleFullScreen = () => {
+    const elem = anaglyphContainerRef.current;
+    if (!elem) return;
+
+    if (!document.fullscreenElement) {
+      elem.requestFullscreen().catch(err => {
+        alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
   };
 
   useEffect(() => {
@@ -160,14 +173,25 @@ export const AnaglyphViewer = () => {
       )}
 
       {streamsStarted && viewMode === 'anaglyph' && hiddenVideoLRef.current && hiddenVideoRRef.current && (
-        <AnaglyphScene
-          videoElementL={hiddenVideoLRef.current} 
-          videoElementR={hiddenVideoRRef.current}
-          leftRotation={leftRotation}   
-          rightRotation={rightRotation} 
-          horizontalOffset={shaderHorizontalOffset} // Pass scaled offset
-          canvasKey={canvasKey}
-        />
+        <div ref={anaglyphContainerRef} className="w-full max-w-3xl relative"> {/* Added relative positioning for fullscreen button */}
+            <AnaglyphScene
+            videoElementL={hiddenVideoLRef.current} 
+            videoElementR={hiddenVideoRRef.current}
+            leftRotation={leftRotation}   
+            rightRotation={rightRotation} 
+            horizontalOffset={shaderHorizontalOffset} 
+            canvasKey={canvasKey}
+            />
+            <button 
+                onClick={toggleFullScreen} 
+                className="btn btn-sm btn-ghost absolute top-2 right-2 z-10 bg-black bg-opacity-50 hover:bg-opacity-75 text-white"
+                title="Toggle Fullscreen"
+            >
+                <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                </svg>
+            </button>
+        </div>
       )}
 
       {!streamsStarted && (

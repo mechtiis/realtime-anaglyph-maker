@@ -93,27 +93,26 @@ export const WebcamControls = ({
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div className="form-control w-full">
-              <label className="label"><span className="label-text">Rotate Left Preview</span></label>
+              <label className="label"><span className="label-text">Rotate Left</span></label>
               <button
-                className="btn btn-outline btn-sm sm:btn-md"
+                className="btn btn-outline btn-sm sm:btn-md w-full justify-start px-3" // Ensure button is wide enough
                 onClick={() => onLeftRotate(getNextRotation(leftRotation))}
                 disabled={!isStreaming}
               >
-                {leftRotation}° 🔄
+                <span className="mr-2"> {leftRotation}°</span> 🔄 
               </button>
             </div>
             <div className="form-control w-full">
-              <label className="label"><span className="label-text">Rotate Right Preview</span></label>
+              <label className="label"><span className="label-text">Rotate Right</span></label>
               <button
-                className="btn btn-outline btn-sm sm:btn-md"
+                className="btn btn-outline btn-sm sm:btn-md w-full justify-start px-3" // Ensure button is wide enough
                 onClick={() => onRightRotate(getNextRotation(rightRotation))}
                 disabled={!isStreaming}
               >
-                {rightRotation}° 🔄
+                 <span className="mr-2">{rightRotation}°</span> 🔄
               </button>
             </div>
           </div>
-          {/* Parallax Adjustment Slider - Show only in anaglyph mode or always if streams are on */}
           {viewMode === 'anaglyph' && (
             <div className="form-control w-full mb-4">
               <label className="label" htmlFor="horizontalOffsetSlider">
@@ -123,8 +122,8 @@ export const WebcamControls = ({
               <input
                 id="horizontalOffsetSlider"
                 type="range"
-                min="-100" // Represents -0.05 in shader
-                max="100"  // Represents +0.05 in shader
+                min="-100" 
+                max="100"  
                 value={horizontalOffset}
                 onChange={(e) => onHorizontalOffsetChange(parseInt(e.target.value, 10))}
                 className="range range-primary range-sm"

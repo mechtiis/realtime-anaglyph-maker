@@ -3,7 +3,7 @@
   The vertex shader passes the texture coordinates to the fragment shader, 
   which samples the two textures and combines them to create the final color output.
 */
-const vertexShader = `
+export const vertexShader = `
   varying vec2 vUv;
   void main() {
     vUv = uv;
@@ -11,11 +11,11 @@ const vertexShader = `
   }
 `;
 
-const fragmentShader = `
+export const fragmentShader = `
   uniform sampler2D leftChannelTexture;
   uniform sampler2D rightChannelTexture;
-  uniform float leftRotation;
-  uniform float rightRotation;
+  uniform float leftRotation; // Rotation in degrees (0, 90, 180, 270)
+  uniform float rightRotation; // Rotation in degrees
 
   varying vec2 vUv;
 
@@ -31,24 +31,19 @@ const fragmentShader = `
   }
 
   void main() {
-    vec2 leftUv = rotateUV(vUv, leftRotation);
-    vec2 rightUv = rotateUV(vUv, rightRotation);
+    // Flip UVs vertically to correct common upside-down texture issue in WebGL
+    vec2 flippedUv = vec2(vUv.x, 1.0 - vUv.y);
 
-    // Clamp UVs to prevent sampling outside the texture after rotation,
-    // or set wrap mode on textures to CLAMP_TO_EDGE if available and preferred.
-    // Simple clamp:
+    vec2 leftUv = rotateUV(flippedUv, leftRotation);
+    vec2 rightUv = rotateUV(flippedUv, rightRotation);
+
+    // Clamp UVs to prevent sampling outside the texture after rotation
     leftUv = clamp(leftUv, 0.0, 1.0);
     rightUv = clamp(rightUv, 0.0, 1.0);
 
     vec4 colorL = texture2D(leftChannelTexture, leftUv);
     vec4 colorR = texture2D(rightChannelTexture, rightUv);
 
-    // If rotated UVs go out of bounds, the edge pixel will be stretched by default (REPEAT wrap mode).
-    // Or, if clamped, it might show a solid color if the texture doesn't have valid data there.
-    // For a cleaner look with rotation, ensure texture wrap modes are set to ClampToEdgeWrapping
-    // on the THREE.VideoTexture objects if edge artifacts appear.
-
     gl_FragColor = vec4(colorL.r, colorR.g, colorR.b, 1.0);
   }
-`
-export { vertexShader, fragmentShader };
+`;

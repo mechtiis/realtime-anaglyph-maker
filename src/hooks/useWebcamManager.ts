@@ -1,29 +1,31 @@
 'use client';
 import { useState, useEffect, RefObject, Dispatch, SetStateAction, useCallback, useRef } from 'react';
-import { WebcamDevice } from '@/types';
+import { WebcamDevice } from '../types'; // Adjust path as needed
 
 export interface UseWebcamManagerOutput {
-  videoLRef: RefObject<HTMLVideoElement>;
-  videoRRef: RefObject<HTMLVideoElement>;
+  videoLRef: RefObject<HTMLVideoElement>; // Ref for the hidden video element (source for anaglyph)
+  videoRRef: RefObject<HTMLVideoElement>; // Ref for the hidden video element (source for anaglyph)
   webcams: WebcamDevice[];
   selectedLeftCam: string;
   setSelectedLeftCam: Dispatch<SetStateAction<string>>;
   selectedRightCam: string;
   setSelectedRightCam: Dispatch<SetStateAction<string>>;
-  startUserMedia: () => Promise<boolean>;
+  startUserMedia: () => Promise<boolean>; // Returns true on success
   stopUserMedia: () => void;
   streamsStarted: boolean;
   error: string | null;
   getVideoDevices: (promptPermissions?: boolean) => Promise<void>;
   isLoadingDevices: boolean;
   permissionGranted: boolean;
+  streamL: MediaStream | null; // Expose the raw stream
+  streamR: MediaStream | null; // Expose the raw stream
 }
 
 export const useWebcamManager = (): UseWebcamManagerOutput => {
   const videoLRef = useRef<HTMLVideoElement>(null);
   const videoRRef = useRef<HTMLVideoElement>(null);
-  const streamLRef = useRef<MediaStream | null>(null);
-  const streamRRef = useRef<MediaStream | null>(null);
+  const streamLRef = useRef<MediaStream | null>(null); // Internal ref for the stream object
+  const streamRRef = useRef<MediaStream | null>(null); // Internal ref for the stream object
 
   const [webcams, setWebcams] = useState<WebcamDevice[]>([]);
   const [selectedLeftCam, setSelectedLeftCam] = useState<string>('');
@@ -31,12 +33,15 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
   const [error, setError] = useState<string | null>(null);
   const [streamsStarted, setStreamsStarted] = useState<boolean>(false);
   const [isLoadingDevices, setIsLoadingDevices] = useState<boolean>(true);
-  const [permissionGranted, setPermissionGranted] = useState<boolean>(false); // Tracks if we've successfully prompted
+  const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
+  const [streamL, setStreamL] = useState<MediaStream | null>(null); // State to expose stream
+  const [streamR, setStreamR] = useState<MediaStream | null>(null); // State to expose stream
+
 
   const fetchDeviceList = useCallback(async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
       console.error('Media devices API not supported on this browser.');
-      setError('Media devices API not supported.'); // Set error for UI
+      setError('Media devices API not supported.');
       return;
     }
     try {
@@ -45,7 +50,7 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
         .filter(device => device.kind === 'videoinput')
         .map((device, index) => ({
             deviceId: device.deviceId,
-            label: device.label || `Camera ${index + 1}`, // Provide a fallback label
+            label: device.label || `Camera ${index + 1}`,
             kind: device.kind,
         }));
 
@@ -93,19 +98,15 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
         setError(`Camera permission denied. Please allow camera access. (${permError.name})`);
         setWebcams([]);
         setIsLoadingDevices(false);
-        return; // Stop if initial permission is denied
+        return;
       }
     }
 
-    // If permission was granted (or already true), fetch the list.
     if(granted) {
         await fetchDeviceList();
     } else if (!promptPermissions) {
-        // If not prompting and permission not yet granted, still try to fetch, labels might be generic
         await fetchDeviceList();
     }
-    // If promptPermissions was true but failed, we already returned.
-
     setIsLoadingDevices(false);
   }, [permissionGranted, fetchDeviceList]);
 
@@ -113,16 +114,17 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
     if (streamLRef.current) {
       streamLRef.current.getTracks().forEach(track => track.stop());
       streamLRef.current = null;
+      setStreamL(null);
     }
     if (videoLRef.current) videoLRef.current.srcObject = null;
 
     if (streamRRef.current) {
       streamRRef.current.getTracks().forEach(track => track.stop());
       streamRRef.current = null;
+      setStreamR(null);
     }
     if (videoRRef.current) videoRRef.current.srcObject = null;
     setStreamsStarted(false);
-    // Don't reset permissionGranted here, as it tracks the general browser permission
   }, []);
 
   const startUserMedia = async (): Promise<boolean> => {
@@ -130,34 +132,40 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
       setError('Please select webcams for both left and right channels.');
       return false;
     }
-    if (!permissionGranted) { // Double check, though UI should prevent this
+    if (!permissionGranted) {
         setError('Camera permissions are required to start streams.');
-        await getVideoDevices(true); // Re-trigger permission prompt
-        if(!permissionGranted) return false; // If still not granted after re-prompt
+        await getVideoDevices(true); 
+        if(!permissionGranted) return false; 
     }
 
     setError(null);
     setIsLoadingDevices(true);
-    if(streamsStarted) stopUserMedia(); // Stop existing if any
+    if(streamsStarted) stopUserMedia();
 
 
     try {
-      const streamL = await navigator.mediaDevices.getUserMedia({
+      const newStreamL = await navigator.mediaDevices.getUserMedia({
         video: { deviceId: { exact: selectedLeftCam } },
       });
-      if (videoLRef.current) videoLRef.current.srcObject = streamL;
-      streamLRef.current = streamL;
+      if (videoLRef.current) {
+        videoLRef.current.srcObject = newStreamL;
+        videoLRef.current.play().catch(e => console.error("Hidden Left Video Play Error:", e)); // Explicit play
+      }
+      streamLRef.current = newStreamL;
+      setStreamL(newStreamL);
 
-      const streamR = await navigator.mediaDevices.getUserMedia({
+      const newStreamR = await navigator.mediaDevices.getUserMedia({
         video: { deviceId: { exact: selectedRightCam } },
       });
-      if (videoRRef.current) videoRRef.current.srcObject = streamR;
-      streamRRef.current = streamR;
+      if (videoRRef.current) {
+        videoRRef.current.srcObject = newStreamR;
+        videoRRef.current.play().catch(e => console.error("Hidden Right Video Play Error:", e)); // Explicit play
+      }
+      streamRRef.current = newStreamR;
+      setStreamR(newStreamR);
 
       setStreamsStarted(true);
-      // Re-fetch device list to ensure labels are accurate after successful stream start
-      // This is useful if labels were generic before explicit device selection.
-      await fetchDeviceList();
+      await fetchDeviceList(); // Refresh list for accurate labels after stream start
       setIsLoadingDevices(false);
       return true;
 
@@ -171,7 +179,7 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
   };
 
   useEffect(() => {
-    getVideoDevices(true); // Prompt for permissions on initial load
+    getVideoDevices(true);
   }, [getVideoDevices]);
 
   useEffect(() => {
@@ -183,6 +191,7 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
   return {
     videoLRef, videoRRef, webcams, selectedLeftCam, setSelectedLeftCam,
     selectedRightCam, setSelectedRightCam, startUserMedia, stopUserMedia,
-    streamsStarted, error, getVideoDevices, isLoadingDevices, permissionGranted
+    streamsStarted, error, getVideoDevices, isLoadingDevices, permissionGranted,
+    streamL, streamR 
   };
 };

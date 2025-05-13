@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, CSSProperties } from 'react';
+import React, { useState, useEffect, CSSProperties, useRef } from 'react'; 
 import { useWebcamManager } from '../hooks/useWebcamManager';
 import { WebcamControls } from './WebcamControls';
 import { AnaglyphScene } from './AnaglyphScene';
@@ -7,9 +7,12 @@ import { RotationAngle } from '../types';
 
 export const AnaglyphViewer = () => {
   const {
-    videoLRef, videoRRef, webcams, selectedLeftCam, setSelectedLeftCam,
+    videoLRef: hiddenVideoLRef, 
+    videoRRef: hiddenVideoRRef, 
+    webcams, selectedLeftCam, setSelectedLeftCam,
     selectedRightCam, setSelectedRightCam, startUserMedia, stopUserMedia,
-    streamsStarted, error: webcamError, getVideoDevices, isLoadingDevices, permissionGranted
+    streamsStarted, error: webcamError, getVideoDevices, isLoadingDevices, permissionGranted,
+    streamL, streamR 
   } = useWebcamManager();
 
   const [viewMode, setViewMode] = useState<'preview' | 'anaglyph'>('preview');
@@ -17,34 +20,62 @@ export const AnaglyphViewer = () => {
   const [rightRotation, setRightRotation] = useState<RotationAngle>(0);
   const [canvasKey, setCanvasKey] = useState<number>(Date.now());
 
+  const previewVideoLRef = useRef<HTMLVideoElement>(null);
+  const previewVideoRRef = useRef<HTMLVideoElement>(null);
+
   const handleStartStreamsForPreview = async () => {
     const success = await startUserMedia();
     if (success) {
-      setViewMode('preview'); // Explicitly stay/go to preview mode
+      setViewMode('preview');
     }
   };
 
   const handleStartAnaglyph = () => {
-    if (streamsStarted) { // Ensure streams are already started from preview
+    if (streamsStarted) {
       setViewMode('anaglyph');
-      setCanvasKey(Date.now()); // Force re-render of Canvas for anaglyph
+      setCanvasKey(Date.now());
     } else {
-        // This case should ideally be handled by disabling the button
-        alert("Please start previews first.");
+      alert("Please start previews first.");
     }
   };
 
   const handleStopStreams = () => {
     stopUserMedia();
-    setViewMode('preview'); // Revert to preview setup on stop
+    setViewMode('preview');
   };
+
+  useEffect(() => {
+    if (streamsStarted && viewMode === 'preview') {
+      if (previewVideoLRef.current && streamL) {
+        if (previewVideoLRef.current.srcObject !== streamL) {
+             previewVideoLRef.current.srcObject = streamL;
+        }
+        // Ensure play is attempted if srcObject is set and video is paused
+        if (previewVideoLRef.current.paused) {
+            previewVideoLRef.current.play().catch(err => console.warn("Preview L play attempt failed:", err));
+        }
+      }
+      if (previewVideoRRef.current && streamR) {
+         if (previewVideoRRef.current.srcObject !== streamR) {
+            previewVideoRRef.current.srcObject = streamR;
+        }
+        if (previewVideoRRef.current.paused) {
+            previewVideoRRef.current.play().catch(err => console.warn("Preview R play attempt failed:", err));
+        }
+      }
+    } else {
+      if (previewVideoLRef.current) previewVideoLRef.current.srcObject = null;
+      if (previewVideoRRef.current) previewVideoRRef.current.srcObject = null;
+    }
+  }, [streamsStarted, viewMode, streamL, streamR]);
+
 
   const videoStyle = (rotation: RotationAngle): CSSProperties => ({
     transform: `rotate(${rotation}deg)`,
     width: '100%',
     height: '100%',
-    objectFit: 'contain', 
-    backgroundColor: '#333',
+    objectFit: 'contain',
+    backgroundColor: '#000000', 
     borderRadius: '0.5rem',
   });
 
@@ -61,8 +92,8 @@ export const AnaglyphViewer = () => {
         </div>
       )}
 
-      <video ref={videoLRef} autoPlay playsInline muted style={{ display: 'none' }}></video>
-      <video ref={videoRRef} autoPlay playsInline muted style={{ display: 'none' }}></video>
+      <video ref={hiddenVideoLRef} autoPlay playsInline muted style={{ display: 'none' }}></video>
+      <video ref={hiddenVideoRRef} autoPlay playsInline muted style={{ display: 'none' }}></video>
 
       <WebcamControls
           webcams={webcams}
@@ -89,37 +120,41 @@ export const AnaglyphViewer = () => {
         <div className="w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4 p-2 bg-base-300 rounded-lg">
           <div>
             <h3 className="text-center text-sm font-semibold mb-1">Left Camera Preview</h3>
-            <div className="aspect-video overflow-hidden rounded-md">
+            <div className="aspect-video overflow-hidden rounded-md bg-black">
                 <video
+                    ref={previewVideoLRef} 
+                    key={`preview-left-${streamL ? streamL.id : 'no-stream-l'}`}
                     autoPlay
                     playsInline
                     muted
-                    ref={videoLRef} 
                     style={videoStyle(leftRotation)}
                     className="transform transition-transform duration-300 ease-in-out"
+                    onLoadedMetadata={(e) => e.currentTarget.play().catch(err => console.warn("Preview L onLoadedMetadata play failed:", err))}
                 />
             </div>
           </div>
           <div>
             <h3 className="text-center text-sm font-semibold mb-1">Right Camera Preview</h3>
-             <div className="aspect-video overflow-hidden rounded-md">
+             <div className="aspect-video overflow-hidden rounded-md bg-black">
                 <video
+                    ref={previewVideoRRef} 
+                    key={`preview-right-${streamR ? streamR.id : 'no-stream-r'}`}
                     autoPlay
                     playsInline
                     muted
-                    ref={videoRRef} 
                     style={videoStyle(rightRotation)}
                     className="transform transition-transform duration-300 ease-in-out"
+                    onLoadedMetadata={(e) => e.currentTarget.play().catch(err => console.warn("Preview R onLoadedMetadata play failed:", err))}
                 />
             </div>
           </div>
         </div>
       )}
 
-      {streamsStarted && viewMode === 'anaglyph' && videoLRef.current && videoRRef.current && (
+      {streamsStarted && viewMode === 'anaglyph' && hiddenVideoLRef.current && hiddenVideoRRef.current && (
         <AnaglyphScene
-          videoElementL={videoLRef.current} 
-          videoElementR={videoRRef.current}
+          videoElementL={hiddenVideoLRef.current} 
+          videoElementR={hiddenVideoRRef.current}
           leftRotation={leftRotation}   
           rightRotation={rightRotation} 
           canvasKey={canvasKey}
@@ -127,11 +162,11 @@ export const AnaglyphViewer = () => {
       )}
 
       {!streamsStarted && (
-        <div className="w-full max-w-3xl aspect-video bg-base-300 rounded-lg shadow-xl flex items-center justify-center text-base-content/50" style={{ minHeight: '200px', maxHeight: '400px' }}>
-          <p className="text-center">
-              {isLoadingDevices ? "Loading cameras..." : "Streams stopped or not yet started."} <br />
-              {!permissionGranted && !isLoadingDevices && "Please grant camera permissions."}
-          </p>
+         <div className="w-full max-w-3xl aspect-video bg-base-300 rounded-lg shadow-xl flex items-center justify-center text-base-content/50" style={{ minHeight: '200px', maxHeight: '400px' }}>
+            <p className="text-center">
+                {isLoadingDevices ? "Loading cameras..." : "Streams stopped or not yet started."} <br />
+                {!permissionGranted && !isLoadingDevices && "Please grant camera permissions."}
+            </p>
         </div>
       )}
     </div>

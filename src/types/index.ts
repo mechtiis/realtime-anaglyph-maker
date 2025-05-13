@@ -3,3 +3,5 @@ export interface WebcamDevice {
   label: string;
   kind: MediaDeviceKind;
 }
+
+export type RotationAngle = 0 | 90 | 180 | 270;

@@ -1,5 +1,6 @@
+'use client';
 import { useState, useEffect, RefObject, Dispatch, SetStateAction, useCallback, useRef } from 'react';
-import { WebcamDevice } from '../types'; // Adjust path as needed
+import { WebcamDevice } from '@/types';
 
 export interface UseWebcamManagerOutput {
   videoLRef: RefObject<HTMLVideoElement>;
@@ -9,13 +10,13 @@ export interface UseWebcamManagerOutput {
   setSelectedLeftCam: Dispatch<SetStateAction<string>>;
   selectedRightCam: string;
   setSelectedRightCam: Dispatch<SetStateAction<string>>;
-  startUserMedia: () => Promise<void>;
+  startUserMedia: () => Promise<boolean>;
   stopUserMedia: () => void;
   streamsStarted: boolean;
   error: string | null;
-  getVideoDevices: (promptPermissions?: boolean) => Promise<void>; // Added optional param
+  getVideoDevices: (promptPermissions?: boolean) => Promise<void>;
   isLoadingDevices: boolean;
-  permissionGranted: boolean; // New state to track if initial permission was granted
+  permissionGranted: boolean;
 }
 
 export const useWebcamManager = (): UseWebcamManagerOutput => {
@@ -30,38 +31,41 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
   const [error, setError] = useState<string | null>(null);
   const [streamsStarted, setStreamsStarted] = useState<boolean>(false);
   const [isLoadingDevices, setIsLoadingDevices] = useState<boolean>(true);
-  const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
+  const [permissionGranted, setPermissionGranted] = useState<boolean>(false); // Tracks if we've successfully prompted
 
   const fetchDeviceList = useCallback(async () => {
-    // This function purely enumerates devices without prompting for permission.
-    // It's called after we believe permissions might have been granted.
     if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-        // This error should ideally be caught by getVideoDevices initial check
-        console.error('Media devices API not supported on this browser.');
-        return;
+      console.error('Media devices API not supported on this browser.');
+      setError('Media devices API not supported.'); // Set error for UI
+      return;
     }
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const videoDevices: WebcamDevice[] = devices
-      .filter(device => device.kind === 'videoinput')
-      .map((device, index) => ({
-        deviceId: device.deviceId,
-        label: device.label || `Camera ${index + 1} (Permission may be needed for full name)`,
-        kind: device.kind,
-      }));
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices: WebcamDevice[] = devices
+        .filter(device => device.kind === 'videoinput')
+        .map((device, index) => ({
+            deviceId: device.deviceId,
+            label: device.label || `Camera ${index + 1}`, // Provide a fallback label
+            kind: device.kind,
+        }));
 
-    setWebcams(videoDevices);
-    if (videoDevices.length > 0) {
-      const currentLeftCamExists = videoDevices.some(d => d.deviceId === selectedLeftCam);
-      const currentRightCamExists = videoDevices.some(d => d.deviceId === selectedRightCam);
+        setWebcams(videoDevices);
+        if (videoDevices.length > 0) {
+            const currentLeftCamExists = videoDevices.some(d => d.deviceId === selectedLeftCam);
+            const currentRightCamExists = videoDevices.some(d => d.deviceId === selectedRightCam);
 
-      if (!currentLeftCamExists || selectedLeftCam === '') {
-        setSelectedLeftCam(videoDevices[0].deviceId);
-      }
-      if (!currentRightCamExists || selectedRightCam === '') {
-        setSelectedRightCam(videoDevices.length > 1 ? videoDevices[1].deviceId : videoDevices[0].deviceId);
-      }
-    } else {
-      setError('No webcams found. Please connect a webcam.');
+            if (!currentLeftCamExists || selectedLeftCam === '') {
+            setSelectedLeftCam(videoDevices[0].deviceId);
+            }
+            if (!currentRightCamExists || selectedRightCam === '') {
+            setSelectedRightCam(videoDevices.length > 1 ? videoDevices[1].deviceId : videoDevices[0].deviceId);
+            }
+        } else {
+            setError('No webcams found. Please connect a webcam.');
+        }
+    } catch (listErr: any) {
+        console.error("Error fetching device list:", listErr);
+        setError(`Error fetching device list: ${listErr.message}`);
     }
   }, [selectedLeftCam, selectedRightCam]);
 
@@ -75,37 +79,34 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
       return;
     }
 
-    try {
-      if (promptPermissions && !permissionGranted) {
-        // Attempt to get a stream to trigger the permission prompt.
-        // This helps populate device labels for the first enumerateDevices call.
-        console.log("Attempting to prompt for camera permissions to get device labels...");
-        try {
-            const temporaryStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            temporaryStream.getTracks().forEach(track => track.stop()); // Stop the temporary stream immediately
-            setPermissionGranted(true); // Mark that permission has been prompted / granted at a high level
-            console.log("Initial permission prompt successful or already granted.");
-        } catch (permError: any) {
-            // This error means the user denied permission at the prompt.
-            // Labels will likely be blank. startUserMedia will handle specific device access errors.
-            console.warn("Initial permission prompt was denied or failed:", permError.name, permError.message);
-            setError(`Camera permission denied. Please allow camera access in your browser settings. (${permError.name})`);
-            // Do not proceed to fetch device list if initial permission is denied here,
-            // as startUserMedia will fail anyway.
-            setIsLoadingDevices(false);
-            setWebcams([]); // Clear webcams if permission is denied
-            return;
-        }
+    let granted = permissionGranted;
+    if (promptPermissions && !granted) {
+      console.log("Attempting to prompt for camera permissions...");
+      try {
+        const temporaryStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        temporaryStream.getTracks().forEach(track => track.stop());
+        setPermissionGranted(true);
+        granted = true;
+        console.log("Initial permission prompt successful or permission already granted.");
+      } catch (permError: any) {
+        console.warn("Initial permission prompt was denied or failed:", permError.name, permError.message);
+        setError(`Camera permission denied. Please allow camera access. (${permError.name})`);
+        setWebcams([]);
+        setIsLoadingDevices(false);
+        return; // Stop if initial permission is denied
       }
-      // Always fetch/refresh the device list
-      await fetchDeviceList();
-
-    } catch (err: any) { // Catch errors from fetchDeviceList or other unexpected issues
-      console.error("Error in getVideoDevices:", err);
-      setError(`Could not access media devices: ${err.message}.`);
-    } finally {
-      setIsLoadingDevices(false);
     }
+
+    // If permission was granted (or already true), fetch the list.
+    if(granted) {
+        await fetchDeviceList();
+    } else if (!promptPermissions) {
+        // If not prompting and permission not yet granted, still try to fetch, labels might be generic
+        await fetchDeviceList();
+    }
+    // If promptPermissions was true but failed, we already returned.
+
+    setIsLoadingDevices(false);
   }, [permissionGranted, fetchDeviceList]);
 
   const stopUserMedia = useCallback(() => {
@@ -121,18 +122,23 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
     }
     if (videoRRef.current) videoRRef.current.srcObject = null;
     setStreamsStarted(false);
+    // Don't reset permissionGranted here, as it tracks the general browser permission
   }, []);
 
-  const startUserMedia = async () => {
+  const startUserMedia = async (): Promise<boolean> => {
     if (!selectedLeftCam || !selectedRightCam) {
       setError('Please select webcams for both left and right channels.');
-      return;
+      return false;
     }
+    if (!permissionGranted) { // Double check, though UI should prevent this
+        setError('Camera permissions are required to start streams.');
+        await getVideoDevices(true); // Re-trigger permission prompt
+        if(!permissionGranted) return false; // If still not granted after re-prompt
+    }
+
     setError(null);
-    setIsLoadingDevices(true); // Indicate loading while starting streams
-    // Stop any existing streams first (already handled by stopUserMedia if called before)
-    // but good to ensure state is clean if called directly.
-    if(streamsStarted) stopUserMedia();
+    setIsLoadingDevices(true);
+    if(streamsStarted) stopUserMedia(); // Stop existing if any
 
 
     try {
@@ -148,26 +154,26 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
       if (videoRRef.current) videoRRef.current.srcObject = streamR;
       streamRRef.current = streamR;
 
-      setPermissionGranted(true); // Explicit permission for these devices was granted
       setStreamsStarted(true);
-      // After successfully starting streams, re-fetch devices to ensure labels are accurate.
+      // Re-fetch device list to ensure labels are accurate after successful stream start
+      // This is useful if labels were generic before explicit device selection.
       await fetchDeviceList();
+      setIsLoadingDevices(false);
+      return true;
 
     } catch (err: any) {
       console.error("Error starting webcams:", err);
-      setError(`Error starting webcams: ${err.message}. Ensure permissions are granted and devices are not in use. (${err.name})`);
-      stopUserMedia(); // Ensure streams are stopped on error
-    } finally {
-        setIsLoadingDevices(false);
+      setError(`Error starting webcams: ${err.message}. (${err.name})`);
+      stopUserMedia();
+      setIsLoadingDevices(false);
+      return false;
     }
   };
 
-  // Initial device scan, try to prompt for permissions to get labels
   useEffect(() => {
     getVideoDevices(true); // Prompt for permissions on initial load
-  }, [getVideoDevices]); // getVideoDevices is memoized
+  }, [getVideoDevices]);
 
-  // Cleanup streams on hook unmount
   useEffect(() => {
     return () => {
       stopUserMedia();

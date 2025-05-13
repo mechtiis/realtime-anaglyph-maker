@@ -1,15 +1,17 @@
-'use client';
 import React, { useMemo, useEffect } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { vertexShader, fragmentShader } from '../lib/shaders'; // Adjust path
+import { RotationAngle } from '../types'; // Adjust path
 
 interface AnaglyphPlaneProps {
   videoElementL: HTMLVideoElement | null;
   videoElementR: HTMLVideoElement | null;
+  leftRotation: RotationAngle;
+  rightRotation: RotationAngle;
 }
 
-const AnaglyphPlane = ({ videoElementL, videoElementR }: AnaglyphPlaneProps) => {
+const AnaglyphPlane = ({ videoElementL, videoElementR, leftRotation, rightRotation }: AnaglyphPlaneProps) => {
   const { viewport } = useThree();
 
   const textureL = useMemo(() => {
@@ -18,6 +20,9 @@ const AnaglyphPlane = ({ videoElementL, videoElementR }: AnaglyphPlaneProps) => 
     tex.minFilter = THREE.LinearFilter;
     tex.magFilter = THREE.LinearFilter;
     tex.colorSpace = THREE.SRGBColorSpace;
+    // For rotated textures, ClampToEdgeWrapping is often preferred to avoid edge artifacts
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
     return tex;
   }, [videoElementL]);
 
@@ -27,6 +32,8 @@ const AnaglyphPlane = ({ videoElementL, videoElementR }: AnaglyphPlaneProps) => 
     tex.minFilter = THREE.LinearFilter;
     tex.magFilter = THREE.LinearFilter;
     tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
     return tex;
   }, [videoElementR]);
 
@@ -34,10 +41,12 @@ const AnaglyphPlane = ({ videoElementL, videoElementR }: AnaglyphPlaneProps) => 
     uniforms: {
       leftChannelTexture: { value: textureL },
       rightChannelTexture: { value: textureR },
+      leftRotation: { value: leftRotation as number }, // Pass rotation as float
+      rightRotation: { value: rightRotation as number },
     },
     vertexShader,
     fragmentShader,
-  }), [textureL, textureR]);
+  }), [textureL, textureR, leftRotation, rightRotation]);
 
   useFrame(() => {
     if (textureL && videoElementL && videoElementL.readyState >= videoElementL.HAVE_ENOUGH_DATA) {
@@ -60,7 +69,9 @@ const AnaglyphPlane = ({ videoElementL, videoElementR }: AnaglyphPlaneProps) => 
   return (
     <mesh>
       <planeGeometry args={[viewport.width, viewport.height]} />
-      <shaderMaterial args={[shaderArgs]} />
+      <shaderMaterial args={[shaderArgs]} key={`${leftRotation}-${rightRotation}`} />
+      {/* Added key to shaderMaterial to force recompile if rotation changes,
+          though uniform updates should typically be sufficient. This is a stronger guarantee. */}
     </mesh>
   );
 };
@@ -68,10 +79,12 @@ const AnaglyphPlane = ({ videoElementL, videoElementR }: AnaglyphPlaneProps) => 
 interface AnaglyphSceneProps {
   videoElementL: HTMLVideoElement | null;
   videoElementR: HTMLVideoElement | null;
+  leftRotation: RotationAngle;
+  rightRotation: RotationAngle;
   canvasKey?: number;
 }
 
-export const AnaglyphScene = ({ videoElementL, videoElementR, canvasKey }: AnaglyphSceneProps) => {
+export const AnaglyphScene = ({ videoElementL, videoElementR, leftRotation, rightRotation, canvasKey }: AnaglyphSceneProps) => {
   if (!videoElementL || !videoElementR) {
     return (
         <div className="w-full aspect-video bg-base-300 rounded-lg shadow-xl flex items-center justify-center text-base-content/50" style={{ minHeight: '300px' }}>
@@ -83,7 +96,12 @@ export const AnaglyphScene = ({ videoElementL, videoElementR, canvasKey }: Anagl
   return (
     <div className="w-full aspect-video bg-black rounded-lg shadow-xl overflow-hidden" style={{ minHeight: '300px' }}>
       <Canvas key={canvasKey} orthographic camera={{ position: [0, 0, 5], zoom: 1, near: 0.1, far: 1000 }}>
-        <AnaglyphPlane videoElementL={videoElementL} videoElementR={videoElementR} />
+        <AnaglyphPlane
+            videoElementL={videoElementL}
+            videoElementR={videoElementR}
+            leftRotation={leftRotation}
+            rightRotation={rightRotation}
+        />
       </Canvas>
     </div>
   );

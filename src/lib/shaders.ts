@@ -3,6 +3,7 @@
   The vertex shader passes the texture coordinates to the fragment shader, 
   which samples the two textures and combines them to create the final color output.
 */
+
 export const vertexShader = `
   varying vec2 vUv;
   void main() {
@@ -16,6 +17,7 @@ export const fragmentShader = `
   uniform sampler2D rightChannelTexture;
   uniform float leftRotation; // Rotation in degrees (0, 90, 180, 270)
   uniform float rightRotation; // Rotation in degrees
+  uniform float horizontalOffset; // Parallax adjustment, e.g., -0.02 to 0.02
 
   varying vec2 vUv;
 
@@ -25,7 +27,7 @@ export const fragmentShader = `
   vec2 rotateUV(vec2 uv, float rotationDegrees) {
     float rotationRadians = rotationDegrees * PI / 180.0;
     mat2 rotationMatrix = mat2(cos(rotationRadians), -sin(rotationRadians),
-                          sin(rotationRadians),  cos(rotationRadians));
+                               sin(rotationRadians),  cos(rotationRadians));
     vec2 center = vec2(0.5, 0.5);
     return rotationMatrix * (uv - center) + center;
   }
@@ -34,15 +36,21 @@ export const fragmentShader = `
     // Flip UVs vertically to correct common upside-down texture issue in WebGL
     vec2 flippedUv = vec2(vUv.x, 1.0 - vUv.y);
 
-    vec2 leftUv = rotateUV(flippedUv, leftRotation);
-    vec2 rightUv = rotateUV(flippedUv, rightRotation);
+    // Apply horizontal offset for parallax adjustment BEFORE rotation
+    // This ensures the offset is always along the original horizontal axis of the texture
+    vec2 offsetLeftUvBase = vec2(flippedUv.x - horizontalOffset, flippedUv.y);
+    vec2 offsetRightUvBase = vec2(flippedUv.x + horizontalOffset, flippedUv.y);
 
-    // Clamp UVs to prevent sampling outside the texture after rotation
-    leftUv = clamp(leftUv, 0.0, 1.0);
-    rightUv = clamp(rightUv, 0.0, 1.0);
+    // Rotate the (now offset) UV coordinates
+    vec2 finalLeftUv = rotateUV(offsetLeftUvBase, leftRotation);
+    vec2 finalRightUv = rotateUV(offsetRightUvBase, rightRotation);
 
-    vec4 colorL = texture2D(leftChannelTexture, leftUv);
-    vec4 colorR = texture2D(rightChannelTexture, rightUv);
+    // Clamp UVs to prevent sampling outside the texture
+    finalLeftUv = clamp(finalLeftUv, 0.0, 1.0);
+    finalRightUv = clamp(finalRightUv, 0.0, 1.0);
+
+    vec4 colorL = texture2D(leftChannelTexture, finalLeftUv);
+    vec4 colorR = texture2D(rightChannelTexture, finalRightUv);
 
     gl_FragColor = vec4(colorL.r, colorR.g, colorR.b, 1.0);
   }

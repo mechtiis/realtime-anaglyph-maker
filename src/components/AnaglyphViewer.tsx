@@ -1,9 +1,14 @@
 'use client';
+
 import React, { useState, useEffect, CSSProperties, useRef } from 'react'; 
 import { useWebcamManager } from '../hooks/useWebcamManager';
 import { WebcamControls } from './WebcamControls';
 import { AnaglyphScene } from './AnaglyphScene';
 import { RotationAngle } from '../types';
+
+// Adjust this scale: higher value means slider has finer control over a smaller offset range
+// e.g., 5000 means slider value 100 maps to 100/5000 = 0.02 shader offset
+const PARALLAX_SLIDER_SCALE = 5000; 
 
 export const AnaglyphViewer = () => {
   const {
@@ -19,6 +24,7 @@ export const AnaglyphViewer = () => {
   const [leftRotation, setLeftRotation] = useState<RotationAngle>(0);
   const [rightRotation, setRightRotation] = useState<RotationAngle>(0);
   const [canvasKey, setCanvasKey] = useState<number>(Date.now());
+  const [horizontalOffsetSlider, setHorizontalOffsetSlider] = useState<number>(0); // Slider value: -100 to 100
 
   const previewVideoLRef = useRef<HTMLVideoElement>(null);
   const previewVideoRRef = useRef<HTMLVideoElement>(null);
@@ -50,7 +56,6 @@ export const AnaglyphViewer = () => {
         if (previewVideoLRef.current.srcObject !== streamL) {
              previewVideoLRef.current.srcObject = streamL;
         }
-        // Ensure play is attempted if srcObject is set and video is paused
         if (previewVideoLRef.current.paused) {
             previewVideoLRef.current.play().catch(err => console.warn("Preview L play attempt failed:", err));
         }
@@ -80,6 +85,7 @@ export const AnaglyphViewer = () => {
   });
 
   const startAnaglyphDisabled = !selectedLeftCam || !selectedRightCam || !permissionGranted || !streamsStarted;
+  const shaderHorizontalOffset = horizontalOffsetSlider / PARALLAX_SLIDER_SCALE;
 
   return (
     <div className="p-2 sm:p-4 md:p-6 bg-base-200 rounded-box shadow-lg flex flex-col gap-4 sm:gap-6 items-center w-full">
@@ -114,6 +120,8 @@ export const AnaglyphViewer = () => {
           rightRotation={rightRotation}
           onRightRotate={setRightRotation}
           viewMode={viewMode}
+          horizontalOffset={horizontalOffsetSlider}
+          onHorizontalOffsetChange={setHorizontalOffsetSlider}
       />
 
       {streamsStarted && viewMode === 'preview' && (
@@ -157,6 +165,7 @@ export const AnaglyphViewer = () => {
           videoElementR={hiddenVideoRRef.current}
           leftRotation={leftRotation}   
           rightRotation={rightRotation} 
+          horizontalOffset={shaderHorizontalOffset} // Pass scaled offset
           canvasKey={canvasKey}
         />
       )}

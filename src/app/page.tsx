@@ -13,6 +13,9 @@ const Home = () => {
           width={200}
           height={200}
         />
+        <p className="text-xs sm:text-sm md:text-md text-neutral-content mt-1">
+          (Previews, Rotation, Parallax, R3F, Next.js, TypeScript & DaisyUI)
+        </p>
       </header>
       <div className="w-full max-w-4xl">
         <AnaglyphViewer />

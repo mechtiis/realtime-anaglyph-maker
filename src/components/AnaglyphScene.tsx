@@ -9,9 +9,10 @@ interface AnaglyphPlaneProps {
   videoElementR: HTMLVideoElement | null;
   leftRotation: RotationAngle;
   rightRotation: RotationAngle;
+  horizontalOffset: number; // Scaled value for shader, e.g., -0.05 to 0.05
 }
 
-const AnaglyphPlane = ({ videoElementL, videoElementR, leftRotation, rightRotation }: AnaglyphPlaneProps) => {
+const AnaglyphPlane = ({ videoElementL, videoElementR, leftRotation, rightRotation, horizontalOffset }: AnaglyphPlaneProps) => {
   const { viewport } = useThree();
 
   const textureL = useMemo(() => {
@@ -20,7 +21,6 @@ const AnaglyphPlane = ({ videoElementL, videoElementR, leftRotation, rightRotati
     tex.minFilter = THREE.LinearFilter;
     tex.magFilter = THREE.LinearFilter;
     tex.colorSpace = THREE.SRGBColorSpace;
-    // For rotated textures, ClampToEdgeWrapping is often preferred to avoid edge artifacts
     tex.wrapS = THREE.ClampToEdgeWrapping;
     tex.wrapT = THREE.ClampToEdgeWrapping;
     return tex;
@@ -41,12 +41,13 @@ const AnaglyphPlane = ({ videoElementL, videoElementR, leftRotation, rightRotati
     uniforms: {
       leftChannelTexture: { value: textureL },
       rightChannelTexture: { value: textureR },
-      leftRotation: { value: leftRotation as number }, // Pass rotation as float
+      leftRotation: { value: leftRotation as number }, 
       rightRotation: { value: rightRotation as number },
+      horizontalOffset: { value: horizontalOffset },
     },
     vertexShader,
     fragmentShader,
-  }), [textureL, textureR, leftRotation, rightRotation]);
+  }), [textureL, textureR, leftRotation, rightRotation, horizontalOffset]);
 
   useFrame(() => {
     if (textureL && videoElementL && videoElementL.readyState >= videoElementL.HAVE_ENOUGH_DATA) {
@@ -69,9 +70,7 @@ const AnaglyphPlane = ({ videoElementL, videoElementR, leftRotation, rightRotati
   return (
     <mesh>
       <planeGeometry args={[viewport.width, viewport.height]} />
-      <shaderMaterial args={[shaderArgs]} key={`${leftRotation}-${rightRotation}`} />
-      {/* Added key to shaderMaterial to force recompile if rotation changes,
-          though uniform updates should typically be sufficient. This is a stronger guarantee. */}
+      <shaderMaterial args={[shaderArgs]} key={`${leftRotation}-${rightRotation}-${horizontalOffset}`} />
     </mesh>
   );
 };
@@ -81,10 +80,11 @@ interface AnaglyphSceneProps {
   videoElementR: HTMLVideoElement | null;
   leftRotation: RotationAngle;
   rightRotation: RotationAngle;
+  horizontalOffset: number; // Scaled value for shader
   canvasKey?: number;
 }
 
-export const AnaglyphScene = ({ videoElementL, videoElementR, leftRotation, rightRotation, canvasKey }: AnaglyphSceneProps) => {
+export const AnaglyphScene = ({ videoElementL, videoElementR, leftRotation, rightRotation, horizontalOffset, canvasKey }: AnaglyphSceneProps) => {
   if (!videoElementL || !videoElementR) {
     return (
         <div className="w-full aspect-video bg-base-300 rounded-lg shadow-xl flex items-center justify-center text-base-content/50" style={{ minHeight: '300px' }}>
@@ -101,6 +101,7 @@ export const AnaglyphScene = ({ videoElementL, videoElementR, leftRotation, righ
             videoElementR={videoElementR}
             leftRotation={leftRotation}
             rightRotation={rightRotation}
+            horizontalOffset={horizontalOffset}
         />
       </Canvas>
     </div>

@@ -7,11 +7,11 @@ interface WebcamControlsProps {
   onLeftCamChange: (deviceId: string) => void;
   selectedRightCam: string;
   onRightCamChange: (deviceId: string) => void;
-  onStartAnaglyphClick: () => void; // Changed from onStartClick
+  onStartAnaglyphClick: () => void; 
   onStopClick: () => void;
-  isStreaming: boolean; // True if any stream (preview or anaglyph) is active
+  isStreaming: boolean; 
   isLoadingDevices: boolean;
-  startAnaglyphDisabled: boolean; // Changed from startDisabled
+  startAnaglyphDisabled: boolean; 
   onRefreshDevices: () => void;
   permissionGranted: boolean;
   leftRotation: RotationAngle;
@@ -20,6 +20,8 @@ interface WebcamControlsProps {
   onRightRotate: (angle: RotationAngle) => void;
   viewMode: 'preview' | 'anaglyph';
   onStartStreamsForPreviewClick: () => void;
+  horizontalOffset: number; // For slider value, e.g., -100 to 100
+  onHorizontalOffsetChange: (value: number) => void;
 }
 
 const rotationOptions: RotationAngle[] = [0, 90, 180, 270];
@@ -28,7 +30,7 @@ export const WebcamControls = ({
   webcams, selectedLeftCam, onLeftCamChange, selectedRightCam, onRightCamChange,
   onStartAnaglyphClick, onStopClick, isStreaming, isLoadingDevices, startAnaglyphDisabled,
   onRefreshDevices, permissionGranted, leftRotation, onLeftRotate, rightRotation, onRightRotate,
-  viewMode, onStartStreamsForPreviewClick
+  viewMode, onStartStreamsForPreviewClick, horizontalOffset, onHorizontalOffsetChange
 }: WebcamControlsProps) => {
 
   const getNextRotation = (current: RotationAngle): RotationAngle => {
@@ -37,7 +39,7 @@ export const WebcamControls = ({
   };
 
   return (
-    <div className="card bg-base-100 shadow-xl p-4 sm:p-6 w-full max-w-lg"> {/* Increased max-width */}
+    <div className="card bg-base-100 shadow-xl p-4 sm:p-6 w-full max-w-lg"> 
       <div className="flex justify-between items-center mb-4">
         <h2 className="card-title text-xl sm:text-2xl">Camera Controls</h2>
         <button
@@ -60,7 +62,6 @@ export const WebcamControls = ({
         Select webcams, adjust rotation for previews, then start anaglyph.
       </p>
 
-      {/* Webcam Selection */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div className="form-control w-full">
           <label className="label"><span className="label-text">Left Webcam</span></label>
@@ -88,33 +89,52 @@ export const WebcamControls = ({
         </div>
       </div>
 
-      {/* Rotation Controls - only if streams are active for preview OR anaglyph is active */}
       {(isStreaming) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div className="form-control w-full">
-            <label className="label"><span className="label-text">Rotate Left Preview</span></label>
-            <button
-              className="btn btn-outline btn-sm sm:btn-md"
-              onClick={() => onLeftRotate(getNextRotation(leftRotation))}
-              disabled={!isStreaming}
-            >
-              {leftRotation}° 🔄
-            </button>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="form-control w-full">
+              <label className="label"><span className="label-text">Rotate Left Preview</span></label>
+              <button
+                className="btn btn-outline btn-sm sm:btn-md"
+                onClick={() => onLeftRotate(getNextRotation(leftRotation))}
+                disabled={!isStreaming}
+              >
+                {leftRotation}° 🔄
+              </button>
+            </div>
+            <div className="form-control w-full">
+              <label className="label"><span className="label-text">Rotate Right Preview</span></label>
+              <button
+                className="btn btn-outline btn-sm sm:btn-md"
+                onClick={() => onRightRotate(getNextRotation(rightRotation))}
+                disabled={!isStreaming}
+              >
+                {rightRotation}° 🔄
+              </button>
+            </div>
           </div>
-          <div className="form-control w-full">
-            <label className="label"><span className="label-text">Rotate Right Preview</span></label>
-            <button
-              className="btn btn-outline btn-sm sm:btn-md"
-              onClick={() => onRightRotate(getNextRotation(rightRotation))}
-              disabled={!isStreaming}
-            >
-              {rightRotation}° 🔄
-            </button>
-          </div>
-        </div>
+          {/* Parallax Adjustment Slider - Show only in anaglyph mode or always if streams are on */}
+          {viewMode === 'anaglyph' && (
+            <div className="form-control w-full mb-4">
+              <label className="label" htmlFor="horizontalOffsetSlider">
+                <span className="label-text">Anaglyph Parallax (Depth)</span>
+                <span className="label-text-alt">{horizontalOffset}</span>
+              </label>
+              <input
+                id="horizontalOffsetSlider"
+                type="range"
+                min="-100" // Represents -0.05 in shader
+                max="100"  // Represents +0.05 in shader
+                value={horizontalOffset}
+                onChange={(e) => onHorizontalOffsetChange(parseInt(e.target.value, 10))}
+                className="range range-primary range-sm"
+                disabled={!isStreaming}
+              />
+            </div>
+          )}
+        </>
       )}
 
-      {/* Action Buttons */}
       <div className="card-actions justify-end mt-2">
         {!isStreaming && viewMode === 'preview' && (
              <button

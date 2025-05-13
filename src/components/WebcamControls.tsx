@@ -39,7 +39,7 @@ export const WebcamControls = ({
   };
 
   return (
-    <div className="card bg-base-100 shadow-xl p-4 sm:p-6 w-full max-w-lg"> 
+    <div className="card bg-base-100 shadow-xl p-4 sm:p-6 w-full max-w-lg m-auto"> 
       <div className="flex justify-between items-center mb-4">
         <h2 className="card-title text-xl sm:text-2xl">Camera Controls</h2>
         <button
@@ -126,7 +126,7 @@ export const WebcamControls = ({
                 max="100"  
                 value={horizontalOffset}
                 onChange={(e) => onHorizontalOffsetChange(parseInt(e.target.value, 10))}
-                className="range range-primary range-sm"
+                className="range range-primary range-sm w-full"
                 disabled={!isStreaming}
               />
             </div>

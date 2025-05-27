@@ -1,8 +1,8 @@
 import React, { useMemo, useEffect } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { vertexShader, fragmentShader } from '../lib/shaders'; // Adjust path
-import { RotationAngle } from '../types'; // Adjust path
+import { vertexShader, fragmentShader } from '../lib/shaders';
+import { RotationAngle } from '../types';
 
 interface AnaglyphPlaneProps {
   videoElementL: HTMLVideoElement | null;

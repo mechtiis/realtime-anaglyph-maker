@@ -1,6 +1,6 @@
 
 import Image from 'next/image';
-import AnaglyphViewer from '../components/AnaglyphViewer'; // Adjust path as needed
+import AnaglyphViewer from '../components/AnaglyphViewer';
 
 
 const Home = () => {

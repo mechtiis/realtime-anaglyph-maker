@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, RefObject, Dispatch, SetStateAction, useCallback, useRef } from 'react';
-import { WebcamDevice } from '../types'; // Adjust path as needed
+import { WebcamDevice } from '../types';
 
 export interface UseWebcamManagerOutput {
   videoLRef: RefObject<HTMLVideoElement>; // Ref for the hidden video element (source for anaglyph)

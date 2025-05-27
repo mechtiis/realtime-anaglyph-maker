@@ -1,5 +1,5 @@
 import React from 'react';
-import { WebcamDevice, RotationAngle } from '../types'; // Adjust path as needed
+import { WebcamDevice, RotationAngle } from '../types';
 
 interface WebcamControlsProps {
   webcams: WebcamDevice[];

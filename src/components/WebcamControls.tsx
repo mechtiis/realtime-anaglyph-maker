@@ -55,7 +55,7 @@ export const WebcamControls = ({
       {!permissionGranted && !isLoadingDevices && webcams.length === 0 && (
         <p className="mb-2 text-xs text-warning-content bg-warning/20 p-2 rounded-md">
           Camera labels might be generic. Grant camera access and refresh if names are unclear.
-          If you've denied permissions, please enable them in your browser settings.
+          If you&apos;ve denied permissions, please enable them in your browser settings.
         </p>
       )}
       <p className="mb-4 text-xs sm:text-sm text-base-content/80">

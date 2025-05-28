@@ -1,31 +1,31 @@
 'use client';
 import { useState, useEffect, RefObject, Dispatch, SetStateAction, useCallback, useRef } from 'react';
-import { WebcamDevice } from '../types';
+import { WebcamDevice } from '@/types';
 
 export interface UseWebcamManagerOutput {
-  videoLRef: RefObject<HTMLVideoElement>; // Ref for the hidden video element (source for anaglyph)
-  videoRRef: RefObject<HTMLVideoElement>; // Ref for the hidden video element (source for anaglyph)
+  videoLRef: RefObject<HTMLVideoElement>; 
+  videoRRef: RefObject<HTMLVideoElement>; 
   webcams: WebcamDevice[];
   selectedLeftCam: string;
   setSelectedLeftCam: Dispatch<SetStateAction<string>>;
   selectedRightCam: string;
   setSelectedRightCam: Dispatch<SetStateAction<string>>;
-  startUserMedia: () => Promise<boolean>; // Returns true on success
+  startUserMedia: () => Promise<boolean>; 
   stopUserMedia: () => void;
   streamsStarted: boolean;
   error: string | null;
   getVideoDevices: (promptPermissions?: boolean) => Promise<void>;
   isLoadingDevices: boolean;
   permissionGranted: boolean;
-  streamL: MediaStream | null; // Expose the raw stream
-  streamR: MediaStream | null; // Expose the raw stream
+  streamL: MediaStream | null; 
+  streamR: MediaStream | null; 
 }
 
 export const useWebcamManager = (): UseWebcamManagerOutput => {
   const videoLRef = useRef<HTMLVideoElement>(null);
   const videoRRef = useRef<HTMLVideoElement>(null);
-  const streamLRef = useRef<MediaStream | null>(null); // Internal ref for the stream object
-  const streamRRef = useRef<MediaStream | null>(null); // Internal ref for the stream object
+  const streamLRef = useRef<MediaStream | null>(null); 
+  const streamRRef = useRef<MediaStream | null>(null); 
 
   const [webcams, setWebcams] = useState<WebcamDevice[]>([]);
   const [selectedLeftCam, setSelectedLeftCam] = useState<string>('');
@@ -34,8 +34,8 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
   const [streamsStarted, setStreamsStarted] = useState<boolean>(false);
   const [isLoadingDevices, setIsLoadingDevices] = useState<boolean>(true);
   const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
-  const [streamL, setStreamL] = useState<MediaStream | null>(null); // State to expose stream
-  const [streamR, setStreamR] = useState<MediaStream | null>(null); // State to expose stream
+  const [streamL, setStreamL] = useState<MediaStream | null>(null); 
+  const [streamR, setStreamR] = useState<MediaStream | null>(null); 
 
 
   const fetchDeviceList = useCallback(async () => {
@@ -68,9 +68,13 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
         } else {
             setError('No webcams found. Please connect a webcam.');
         }
-    } catch (listErr: any) {
-        console.error("Error fetching device list:", listErr);
-        setError(`Error fetching device list: ${listErr.message}`);
+    } catch (err) {
+        console.error("Error fetching device list:", err);
+        if (err instanceof Error) {
+          setError(`Error fetching device list: ${err.message}`);
+        } else {
+          setError("An unknown error occurred while fetching device list.");
+        }
     }
   }, [selectedLeftCam, selectedRightCam]);
 
@@ -93,9 +97,13 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
         setPermissionGranted(true);
         granted = true;
         console.log("Initial permission prompt successful or permission already granted.");
-      } catch (permError: any) {
-        console.warn("Initial permission prompt was denied or failed:", permError.name, permError.message);
-        setError(`Camera permission denied. Please allow camera access. (${permError.name})`);
+      } catch (permError) { // Changed from permError: any
+        console.warn("Initial permission prompt was denied or failed:", permError);
+        if (permError instanceof Error) {
+            setError(`Camera permission denied. Please allow camera access. (${permError.name}: ${permError.message})`);
+        } else {
+            setError("Camera permission denied. Please allow camera access.");
+        }
         setWebcams([]);
         setIsLoadingDevices(false);
         return;
@@ -149,7 +157,7 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
       });
       if (videoLRef.current) {
         videoLRef.current.srcObject = newStreamL;
-        videoLRef.current.play().catch(e => console.error("Hidden Left Video Play Error:", e)); // Explicit play
+        videoLRef.current.play().catch(e => console.error("Hidden Left Video Play Error:", e)); 
       }
       streamLRef.current = newStreamL;
       setStreamL(newStreamL);
@@ -159,19 +167,23 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
       });
       if (videoRRef.current) {
         videoRRef.current.srcObject = newStreamR;
-        videoRRef.current.play().catch(e => console.error("Hidden Right Video Play Error:", e)); // Explicit play
+        videoRRef.current.play().catch(e => console.error("Hidden Right Video Play Error:", e)); 
       }
       streamRRef.current = newStreamR;
       setStreamR(newStreamR);
 
       setStreamsStarted(true);
-      await fetchDeviceList(); // Refresh list for accurate labels after stream start
+      await fetchDeviceList(); 
       setIsLoadingDevices(false);
       return true;
 
-    } catch (err: any) {
+    } catch (err) { // Changed from err: any
       console.error("Error starting webcams:", err);
-      setError(`Error starting webcams: ${err.message}. (${err.name})`);
+        if (err instanceof Error) {
+            setError(`Error starting webcams: ${err.message}. (${err.name})`);
+        } else {
+            setError("An unknown error occurred while starting webcams.");
+        }
       stopUserMedia();
       setIsLoadingDevices(false);
       return false;

@@ -4,10 +4,11 @@ import { useWebcamManager } from '../hooks/useWebcamManager';
 import { WebcamControls } from './WebcamControls';
 import { AnaglyphScene } from './AnaglyphScene';
 import { RotationAngle } from '../types';
+import { AppIntro } from './AppIntro';
 
-const PARALLAX_SLIDER_SCALE = 5000; 
+const PARALLAX_SLIDER_SCALE = 20000; 
 
-export const AnaglyphViewer = () => {
+export const AnaglyphViewer = () => { 
   const {
     videoLRef: hiddenVideoLRef, 
     videoRRef: hiddenVideoRRef, 
@@ -22,11 +23,24 @@ export const AnaglyphViewer = () => {
   const [rightRotation, setRightRotation] = useState<RotationAngle>(0);
   const [canvasKey, setCanvasKey] = useState<number>(Date.now());
   const [horizontalOffsetSlider, setHorizontalOffsetSlider] = useState<number>(0); 
-  const [isMaximized, setIsMaximized] = useState<boolean>(false); // State for maximized view
+  const [isMaximized, setIsMaximized] = useState<boolean>(false); 
+  const [showIntro, setShowIntro] = useState<boolean>(false);
 
   const previewVideoLRef = useRef<HTMLVideoElement>(null);
   const previewVideoRRef = useRef<HTMLVideoElement>(null);
-  const mainContainerRef = useRef<HTMLDivElement>(null); // Ref for the main container
+  const mainContainerRef = useRef<HTMLDivElement>(null); 
+
+  useEffect(() => {
+    const introSeen = localStorage.getItem('introScreenSeen');
+    if (introSeen !== 'true') {
+      setShowIntro(true);
+    }
+  }, []);
+
+  const handleDismissIntro = () => {
+    setShowIntro(false);
+    localStorage.setItem('introScreenSeen', 'true');
+  };
 
   const handleStartStreamsForPreview = async () => {
     const success = await startUserMedia();
@@ -47,9 +61,9 @@ export const AnaglyphViewer = () => {
   const handleStopStreams = () => {
     stopUserMedia();
     setViewMode('preview');
-    if (isMaximized) { // Exit maximized view if streams are stopped
-        setIsMaximized(false);
-        document.body.style.overflow = '';
+    if (isMaximized) { 
+      setIsMaximized(false);
+      document.body.style.overflow = '';
     }
   };
 
@@ -58,13 +72,11 @@ export const AnaglyphViewer = () => {
   };
 
   useEffect(() => {
-    // Manage body scroll when maximized state changes
     if (isMaximized) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
-    // Cleanup function to reset body overflow when component unmounts
     return () => {
       document.body.style.overflow = '';
     };
@@ -74,18 +86,18 @@ export const AnaglyphViewer = () => {
     if (streamsStarted && viewMode === 'preview') {
       if (previewVideoLRef.current && streamL) {
         if (previewVideoLRef.current.srcObject !== streamL) {
-             previewVideoLRef.current.srcObject = streamL;
+            previewVideoLRef.current.srcObject = streamL;
         }
         if (previewVideoLRef.current.paused) {
-            previewVideoLRef.current.play().catch(err => console.warn("Preview L play attempt failed:", err));
+          previewVideoLRef.current.play().catch(err => console.warn("Preview L play attempt failed:", err));
         }
       }
       if (previewVideoRRef.current && streamR) {
-         if (previewVideoRRef.current.srcObject !== streamR) {
-            previewVideoRRef.current.srcObject = streamR;
+        if (previewVideoRRef.current.srcObject !== streamR) {
+          previewVideoRRef.current.srcObject = streamR;
         }
         if (previewVideoRRef.current.paused) {
-            previewVideoRRef.current.play().catch(err => console.warn("Preview R play attempt failed:", err));
+          previewVideoRRef.current.play().catch(err => console.warn("Preview R play attempt failed:", err));
         }
       }
     } else {
@@ -111,6 +123,10 @@ export const AnaglyphViewer = () => {
     ? "fixed inset-0 w-screen h-screen bg-base-300 z-[1000] p-4 flex flex-col items-center justify-center overflow-auto"
     : "p-2 sm:p-4 md:p-6 bg-base-200 rounded-box shadow-lg flex flex-col gap-4 sm:gap-6 items-center w-full";
 
+  if (showIntro) {
+    return <AppIntro onDismiss={handleDismissIntro} />;
+  }
+
   return (
     <div ref={mainContainerRef} className={containerClasses}>
       {webcamError && (
@@ -125,7 +141,6 @@ export const AnaglyphViewer = () => {
       <video ref={hiddenVideoLRef} autoPlay playsInline muted style={{ display: 'none' }}></video>
       <video ref={hiddenVideoRRef} autoPlay playsInline muted style={{ display: 'none' }}></video>
 
-      {/* Controls are always rendered, but their content might change based on viewMode */}
       <div className={isMaximized && viewMode === 'anaglyph' ? 'w-full max-w-md mb-4' : 'w-full'}>
         <WebcamControls
             webcams={webcams}
@@ -170,7 +185,7 @@ export const AnaglyphViewer = () => {
           </div>
           <div>
             <h3 className="text-center text-sm font-semibold mb-1">Right Camera Preview</h3>
-             <div className="aspect-video overflow-hidden rounded-md bg-black">
+              <div className="aspect-video overflow-hidden rounded-md bg-black">
                 <video
                     ref={previewVideoRRef} 
                     key={`preview-right-${streamR ? streamR.id : 'no-stream-r'}`}
@@ -210,8 +225,8 @@ export const AnaglyphViewer = () => {
         </div>
       )}
 
-      {!streamsStarted && !isMaximized && ( // Only show this placeholder if not maximized
-         <div className="w-full max-w-3xl aspect-video bg-base-300 rounded-lg shadow-xl flex items-center justify-center text-base-content/50" style={{ minHeight: '200px', maxHeight: '400px' }}>
+      {!streamsStarted && !isMaximized && ( 
+        <div className="w-full max-w-3xl aspect-video bg-base-300 rounded-lg shadow-xl flex items-center justify-center text-base-content/50" style={{ minHeight: '200px', maxHeight: '400px' }}>
             <p className="text-center">
                 {isLoadingDevices ? "Loading cameras..." : "Streams stopped or not yet started."} <br />
                 {!permissionGranted && !isLoadingDevices && "Please grant camera permissions."}

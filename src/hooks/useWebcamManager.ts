@@ -1,10 +1,9 @@
-'use client';
 import { useState, useEffect, RefObject, Dispatch, SetStateAction, useCallback, useRef } from 'react';
 import { WebcamDevice } from '@/types';
 
 export interface UseWebcamManagerOutput {
-  videoLRef: RefObject<HTMLVideoElement>; 
-  videoRRef: RefObject<HTMLVideoElement>; 
+  videoLRef: RefObject<HTMLVideoElement | null>;
+  videoRRef: RefObject<HTMLVideoElement | null>;
   webcams: WebcamDevice[];
   selectedLeftCam: string;
   setSelectedLeftCam: Dispatch<SetStateAction<string>>;
@@ -68,12 +67,12 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
         } else {
             setError('No webcams found. Please connect a webcam.');
         }
-    } catch (err) {
+    } catch (err) { 
         console.error("Error fetching device list:", err);
         if (err instanceof Error) {
-          setError(`Error fetching device list: ${err.message}`);
+             setError(`Error fetching device list: ${err.message}`);
         } else {
-          setError("An unknown error occurred while fetching device list.");
+             setError("An unknown error occurred while fetching device list.");
         }
     }
   }, [selectedLeftCam, selectedRightCam]);
@@ -97,7 +96,7 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
         setPermissionGranted(true);
         granted = true;
         console.log("Initial permission prompt successful or permission already granted.");
-      } catch (permError) { // Changed from permError: any
+      } catch (permError) { 
         console.warn("Initial permission prompt was denied or failed:", permError);
         if (permError instanceof Error) {
             setError(`Camera permission denied. Please allow camera access. (${permError.name}: ${permError.message})`);
@@ -177,7 +176,7 @@ export const useWebcamManager = (): UseWebcamManagerOutput => {
       setIsLoadingDevices(false);
       return true;
 
-    } catch (err) { // Changed from err: any
+    } catch (err) { 
       console.error("Error starting webcams:", err);
         if (err instanceof Error) {
             setError(`Error starting webcams: ${err.message}. (${err.name})`);
